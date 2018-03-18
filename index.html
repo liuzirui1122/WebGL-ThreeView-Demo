@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>计算机图形学三视图作业 - 刘子锐(2015212149)</title>
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/font-awesome.min.css" />
+    
+
+</head>
+<body>
+
+<div class="main container">
+    <div class="page-header">
+        <h1>计算机图形学三视图作业 <small>刘子锐(2015212149)</small></h1>
+        <p>采用语言:Bootstrap + jquery 为前端UI</p>
+        <p>后端使用基于OpenGL ES 2.0的<a href="https://baike.baidu.com/item/WebGL/592485">WebGL</a>3D绘图协议，由<a href="https://threejs.org/">Three.js</a>封装。</p>
+    </div>
+    
+    <div class="alert alert-danger alert-main" role="alert"><strong>对不起</strong>，您的浏览器不支持Webgl,请使用Chrome/Firefox等浏览器查看作业。</div>
+
+    <div class="settings">
+    <form class="form-inline">
+        <div class="form-group">
+            <label for="c_l">三棱柱边长</label>
+            <input type="range" min="10" max="200" value="60" class="form-control" id="c_l">
+        </div>
+        <div class="form-group">
+            <label for="c_h">三棱柱高度</label>
+            <input type="range" min="10" max="200" value="80" class="form-control" id="c_h">
+        </div>
+        <div class="form-group">
+            <label for="b_l">正方体边长</label>
+            <input type="range" min="10" max="200" value="40" class="form-control" id="b_l">
+        </div>
+    </form>
+    
+    </div>
+    <div class="row test">
+        <div class="col-md-6" id="webgl_3d">
+            <h4>图形三维立体图</h4>
+            <p>按住左键旋转，右键平移，滚轮缩放。</p>
+        </div>
+        <div class="col-md-6" id="webgl_2d">
+            <h4>二维投影图</h4>
+            <p>分别为轴测图、正视图、左视图、俯视图。</p>
+            
+        </div>
+    </div>
+    <div class="canvas">
+        <canvas id="canvas"></canvas> 
+    </div>
+    
+    <div class="page-header">
+        <h1>代码:</h1>
+    </div>
+    <div>
+    <pre><code>
+    var global = {};
+    global.cl = $("#c_l");
+    global.ch = $("#c_h");
+    global.bl = $("#b_l");
+    
+    function ok() {
+        if(isNaN(global.cl.val()) || global.cl.val()<10 || global.cl.val()>200) return false;
+        if(isNaN(global.ch.val()) || global.ch.val()<10 || global.ch.val()>200) return false;
+        if(isNaN(global.bl.val()) || global.bl.val()<10 || global.bl.val()>200) return false;
+        
+        return true;
+    }
+    $("#c_l").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $("#c_h").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $("#b_l").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $(function(){
+        if(!Modernizr.webgl) {
+            $(".alert-main").slideToggle();
+        }
+        
+        
+        var container, stats, gui;
+        var camera, scene, renderer,controls;
+        var geometry;
+        
+        var render = function() {
+            renderer.render( scene, camera );
+        }
+        
+        var resize = function() {
+            var w = $("#webgl_3d").width()-30;
+            var h = w*6/8;
+            camera.updateProjectionMatrix();
+            renderer.setSize( w, h );
+            render();
+        }
+        
+        
+        //生成坐标系的箭头
+        var generateArrow = function(l,m) {
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(l-5, -3, 0));   
+                g.vertices.push(new THREE.Vector3(l, 0, 0));
+                g.vertices.push(new THREE.Vector3(l-5, 3, 0));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(l-5, 0, -3));  
+                g.vertices.push(new THREE.Vector3(l, 0, 0));
+                g.vertices.push(new THREE.Vector3(l-5, 0, 3));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(0, l-5, -3));       
+                g.vertices.push(new THREE.Vector3(0, l, 0));
+                g.vertices.push(new THREE.Vector3(0, l-5, 3));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();    
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(-3, l-5, 0)); 
+                g.vertices.push(new THREE.Vector3(0, l, 0));
+                g.vertices.push(new THREE.Vector3(3, l-5, 0));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(-3, 0, l-5)); 
+                g.vertices.push(new THREE.Vector3(0, 0, l));
+                g.vertices.push(new THREE.Vector3(3, 0, l-5));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(0, 3, l-5)); 
+                g.vertices.push(new THREE.Vector3(0, 0, l));
+                g.vertices.push(new THREE.Vector3(0, -3, l-5));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            
+        }
+        var initEnv = function() {
+            var w = $("#webgl_3d").width()-30;
+            var h = w*6/8;
+            //定义场景、摄像机、渲染器
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera( 45, 1, 0.1, 1500 );
+            camera.position.set(0, 0, 500);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize( w, h );
+            document.getElementById("webgl_3d").appendChild( renderer.domElement );
+
+            controls = new THREE.OrbitControls( camera, renderer.domElement );
+            controls.addEventListener( 'change', render ); 
+
+
+            //监听窗口拉伸
+            $(window).resize(resize);
+            
+            //绘制三维坐标系
+            var cood_length = 130;
+            var g_x = new THREE.Geometry();
+            g_x.vertices.push(new THREE.Vector3(cood_length, 0, 0));
+            g_x.vertices.push(new THREE.Vector3(0, 0, 0));
+            var g_y = new THREE.Geometry();
+            g_y.vertices.push(new THREE.Vector3(0, cood_length, 0));
+            g_y.vertices.push(new THREE.Vector3(0, 0, 0));
+            var g_z = new THREE.Geometry();
+            g_z.vertices.push(new THREE.Vector3(0, 0, cood_length));
+            g_z.vertices.push(new THREE.Vector3(0, 0, 0));
+            
+            
+
+            //不同颜色线的材质
+            var white_line = new THREE.LineBasicMaterial({ color: 0xffffff ,linewidth:4});
+            var red_line = new THREE.LineBasicMaterial({ color: 0xff0000 ,linewidth:4});
+            var green_line = new THREE.LineBasicMaterial({ color: 0x00ff00 ,linewidth:4});
+            var blue_line = new THREE.LineBasicMaterial({ color: 0x0000ff ,linewidth:4});
+            
+            var cood_x = new THREE.Line(g_x, white_line);
+            var cood_y = new THREE.Line(g_y, white_line);
+            var cood_z = new THREE.Line(g_z, white_line);
+            
+            scene.add(cood_x);
+            scene.add(cood_y);
+            scene.add(cood_z);
+            generateArrow(cood_length,white_line);
+        }
+        var init = function() {
+            
+            
+     
+            
+            //图形为三棱柱+正方体
+            //cylinder三棱柱
+            var c_width = 60, //三棱柱底面边长
+                c_height = 80; //三棱柱高
+            var c_d = c_width/Math.sqrt(3);    
+            var c_g = new THREE.CylinderGeometry( c_d, c_d, c_height, 3 );
+            var c_eg = new THREE.EdgesGeometry(c_g);
+            var c_m = new THREE.LineBasicMaterial( {color: 0xff0000 ,linewidth:4} );
+            var cylinder_wireframe = new THREE.LineSegments(c_eg,c_m);
+            cylinder_wireframe.position.set(c_width/2,c_height/2,c_d/2);
+        
+            scene.add(cylinder_wireframe);
+     
+            var b_line = 40;
+            var b_g = new THREE.BoxGeometry(b_line,b_line,b_line);
+            var b_eg = new THREE.EdgesGeometry(b_g);
+            var b_m = new THREE.LineBasicMaterial( {color: 0x00ff00 ,linewidth:4} );   
+            var box_wireframe = new THREE.LineSegments(b_eg, b_m);
+            
+            box_wireframe.position.set(c_width/2,c_height+b_line/2,c_d/2);
+            scene.add(box_wireframe);
+                
+            global.update1 = function(){
+
+                scene.remove(cylinder_wireframe);
+                scene.remove(box_wireframe);
+                
+                c_width = Number(global.cl.val()); //三棱柱底面边长
+                c_height = Number(global.ch.val()); //三棱柱高
+                c_d = c_width/Math.sqrt(3);    
+                c_g = new THREE.CylinderGeometry( c_d, c_d, c_height, 3 );
+                c_eg = new THREE.EdgesGeometry(c_g);
+                c_m = new THREE.LineBasicMaterial( {color: 0xff0000 ,linewidth:4} );
+                cylinder_wireframe = new THREE.LineSegments(c_eg,c_m);
+                cylinder_wireframe.position.set(c_width/2,c_height/2,c_d/2);
+
+                scene.add(cylinder_wireframe);
+
+                b_line = Number(global.bl.val());
+                b_g = new THREE.BoxGeometry(b_line,b_line,b_line);
+                b_eg = new THREE.EdgesGeometry(b_g);
+                b_m = new THREE.LineBasicMaterial( {color: 0x00ff00 ,linewidth:4} );   
+                box_wireframe = new THREE.LineSegments(b_eg, b_m);
+
+                box_wireframe.position.set(c_width/2,c_height+b_line/2,c_d/2);
+                scene.add(box_wireframe);
+                
+                render();
+            }
+        }
+        initEnv();
+        init();
+        render();
+        
+    });
+    
+    
+    
+    $(function(){      
+        var container, stats, gui;
+        var camera, scene, renderer,controls;
+        var geometry;
+        
+        var render = function() {
+            renderer.render( scene, camera );
+        }
+        
+        var resize = function() {
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            camera.updateProjectionMatrix();
+            renderer.setSize( w, h );
+            render();
+        }
+        
+        
+        var transform = function(points,tran) {
+            //console.log(points);
+            var newpoints = [];
+            for (var i=0;i<points.length;i++) {
+                var tx = points[i].x,
+                    ty = points[i].y,
+                    tz = points[i].z;
+                
+                var np = new THREE.Vector3();
+                np.x = tx * tran[0][0] + ty* tran[1][0] + tz * tran[2][0]+ tran[3][0];
+                np.y = tx * tran[0][1] + ty* tran[1][1] + tz * tran[2][1]+ tran[3][1];
+                np.z = tx * tran[0][2] + ty* tran[1][2] + tz * tran[2][2]+ tran[3][2];
+                
+                newpoints.push(np);
+            }
+            return newpoints;
+        }
+        var initEnv = function() {
+            
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            
+            
+            //定义场景、摄像机、渲染器
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(w/-2,w/2,h/-2,h/2,1,1500);
+            camera.position.set(0, -300, 0);
+            camera.lookAt(new THREE.Vector3(0, 1, 0));
+
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize( w, h );
+            document.getElementById("webgl_2d").appendChild( renderer.domElement );
+
+            //监听窗口拉伸
+            $(window).resize(resize);
+
+            
+        }
+        var init = function(cc_l,cc_h,cb_l) {
+            
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            
+            //绘制横纵分割线
+            var cood_length = 130;
+            g_h = new THREE.Geometry();
+            g_h.vertices.push(new THREE.Vector3(0, 0, -h/2));
+            g_h.vertices.push(new THREE.Vector3(0, 0, h/2));
+            g_v = new THREE.Geometry();
+            g_v.vertices.push(new THREE.Vector3(-w/2, 0, 0));
+            g_v.vertices.push(new THREE.Vector3(w/2, 0, 0));
+            
+
+            //不同颜色线的材质
+            var white_line = new THREE.LineBasicMaterial({ color: 0xffffff ,linewidth:4});
+            var red_line = new THREE.LineBasicMaterial({ color: 0xff0000 ,linewidth:4});
+            var green_line = new THREE.LineBasicMaterial({ color: 0x00ff00 ,linewidth:4});
+            var blue_line = new THREE.LineBasicMaterial({ color: 0x0000ff ,linewidth:4});
+            
+            var cood_h = new THREE.Line(g_h, white_line);
+            var cood_v = new THREE.Line(g_v, white_line);
+            
+            scene.add(cood_h);
+            scene.add(cood_v);
+
+            //定义三棱柱和正方体顶点
+            function getCylinder(c_l,c_h) {
+                var arr = [];
+                arr.push(new THREE.Vector3(0,0,0));
+                arr.push(new THREE.Vector3(c_l,0,0));
+                arr.push(new THREE.Vector3(c_l/2,0,c_l*Math.sqrt(3)/2));
+                arr.push(new THREE.Vector3(0,c_h,0));
+                arr.push(new THREE.Vector3(c_l,c_h,0));
+                arr.push(new THREE.Vector3(c_l/2,c_h,c_l*Math.sqrt(3)/2));
+               
+                //123 底面 456 顶面
+                return arr;
+            }
+            function getBox(c_l,c_h,b_l) {
+                var arr = [];
+                var t = c_l/(2*Math.sqrt(3));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h+b_l,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h+b_l,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h+b_l,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h+b_l,t + b_l/2));
+               
+                //1234 底面 4567 顶面
+                return arr;
+            }
+            //主视图
+            var XOZ = [
+                [1,0,0,0],
+                [0,0,0,0],
+                [0,0,1,0],
+                [0,0,0,1]
+            ];
+            //俯视图
+            var XOY = [
+                [1,0,0,0],
+                [0,0,-1,0],
+                [0,0,0,0],
+                [0,0,-h/10,1]
+            ];
+            //侧视图
+            var YOZ = [ 
+                [0,0,0,0],
+                [-1,0,0,0],
+                [0,0,1,0],
+                [-w/10,0,0,1]
+            ];
+            //正轴测图
+            var ISO = [ 
+                [0.707,0,-0.408,0],
+                [-0.707,0,-0.408,0],
+                [0,0,0.816,0],
+                [-w/10,0,-h/10,1]
+            ];
+            
+            var carr = getCylinder(cc_l,cc_h);
+            var carr_xoy = transform(carr,XOY);
+            var carr_xoz = transform(carr,XOZ);
+            var carr_yoz = transform(carr,YOZ);
+            var carr_iso = transform(carr,ISO);
+            
+            var barr = getBox(cc_l,cc_h,cb_l);
+            var barr_xoy = transform(barr,XOY);
+            var barr_xoz = transform(barr,XOZ);
+            var barr_yoz = transform(barr,YOZ);
+            var barr_iso = transform(barr,ISO);
+            
+            //XOY
+            function drawCylinderTrans(carrtrans) {
+                //console.log(carrtrans);
+                //三棱柱底边
+                xoy_u1 = new THREE.Geometry();
+                xoy_u1.vertices.push(carrtrans[0]);
+                xoy_u1.vertices.push(carrtrans[1]);
+                xoy_u1.vertices.push(carrtrans[2]);
+                xoy_u1.vertices.push(carrtrans[0]);  
+                scene.add(new THREE.Line(xoy_u1,red_line));
+                
+                xoy_u2 = new THREE.Geometry();
+                xoy_u2.vertices.push(carrtrans[3]);
+                xoy_u2.vertices.push(carrtrans[4]);
+                xoy_u2.vertices.push(carrtrans[5]);
+                xoy_u2.vertices.push(carrtrans[3]);  
+                scene.add(new THREE.Line(xoy_u2,red_line));
+                
+                //三棱柱棱
+                xoy_l1 = new THREE.Geometry();
+                xoy_l1.vertices.push(carrtrans[0]);
+                xoy_l1.vertices.push(carrtrans[3]);
+                scene.add(new THREE.Line(xoy_l1,red_line));
+                
+                xoy_l2 = new THREE.Geometry();
+                xoy_l2.vertices.push(carrtrans[1]);
+                xoy_l2.vertices.push(carrtrans[4]);
+                scene.add(new THREE.Line(xoy_l2,red_line));
+                
+                xoy_l3 = new THREE.Geometry();
+                xoy_l3.vertices.push(carrtrans[2]);
+                xoy_l3.vertices.push(carrtrans[5]);
+                scene.add(new THREE.Line(xoy_l3,red_line));
+                
+            }
+            
+            function drawBoxTrans(carrtrans) {
+                //正方体底边
+                xoy_u1 = new THREE.Geometry();
+                xoy_u1.vertices.push(carrtrans[0]);
+                xoy_u1.vertices.push(carrtrans[1]);
+                xoy_u1.vertices.push(carrtrans[2]);
+                xoy_u1.vertices.push(carrtrans[3]);
+                xoy_u1.vertices.push(carrtrans[0]);  
+                scene.add(new THREE.Line(xoy_u1,green_line));
+                
+                xoy_u2 = new THREE.Geometry();
+                xoy_u2.vertices.push(carrtrans[4]);
+                xoy_u2.vertices.push(carrtrans[5]);
+                xoy_u2.vertices.push(carrtrans[6]);
+                xoy_u2.vertices.push(carrtrans[7]);
+                xoy_u2.vertices.push(carrtrans[4]);  
+                scene.add(new THREE.Line(xoy_u2,green_line));
+                
+                //正方体棱
+                xoy_l1 = new THREE.Geometry();
+                xoy_l1.vertices.push(carrtrans[0]);
+                xoy_l1.vertices.push(carrtrans[4]);
+                scene.add(new THREE.Line(xoy_l1,green_line));
+                
+                xoy_l2 = new THREE.Geometry();
+                xoy_l2.vertices.push(carrtrans[1]);
+                xoy_l2.vertices.push(carrtrans[5]);
+                scene.add(new THREE.Line(xoy_l2,green_line));
+                
+                xoy_l3 = new THREE.Geometry();
+                xoy_l3.vertices.push(carrtrans[2]);
+                xoy_l3.vertices.push(carrtrans[6]);
+                scene.add(new THREE.Line(xoy_l3,green_line));
+                
+                xoy_l4 = new THREE.Geometry();
+                xoy_l4.vertices.push(carrtrans[3]);
+                xoy_l4.vertices.push(carrtrans[7]);
+                scene.add(new THREE.Line(xoy_l4,green_line));
+                
+            }
+            
+            drawCylinderTrans(carr_xoy);
+            drawCylinderTrans(carr_xoz);
+            drawCylinderTrans(carr_yoz);
+            drawCylinderTrans(carr_iso);
+            drawBoxTrans(barr_xoy);
+            drawBoxTrans(barr_xoz);
+            drawBoxTrans(barr_yoz);
+            drawBoxTrans(barr_iso);
+                
+        }
+        initEnv();
+        init(60,80,40);
+        render();
+        
+        global.update2 = function() {
+            while(scene.children.length>0) {
+                scene.remove(scene.children[0]);
+            }
+            init(Number(global.cl.val()),Number(global.ch.val()),Number(global.bl.val()));
+            render();
+        }
+        
+    });
+    
+    
+    </code></pre>
+    </div>
+    
+</div>
+
+ 
+<script src="assets/js/jquery.min.js"></script> 
+<script src="assets/js/bootstrap.min.js"></script> 
+<script src="assets/js/modernizr.js"></script>
+<script src="assets/js/three.min.js"></script>
+<script src="assets/examples/js/controls/OrbitControls.js"></script>
+    
+<!--
+<script src="assets/js/app.js"></script>
+-->
+
+    
+<script>
+    var global = {};
+    global.cl = $("#c_l");
+    global.ch = $("#c_h");
+    global.bl = $("#b_l");
+    
+    function ok() {
+        if(isNaN(global.cl.val()) || global.cl.val()<10 || global.cl.val()>200) return false;
+        if(isNaN(global.ch.val()) || global.ch.val()<10 || global.ch.val()>200) return false;
+        if(isNaN(global.bl.val()) || global.bl.val()<10 || global.bl.val()>200) return false;
+        
+        return true;
+    }
+    $("#c_l").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $("#c_h").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $("#b_l").change(function(){
+        var v = $(this).val();
+        
+        if(!ok()) return;
+        
+        global.update1(v);
+        global.update2(v);
+    });
+    
+    $(function(){
+        if(!Modernizr.webgl) {
+            $(".alert-main").slideToggle();
+        }
+        
+        
+        var container, stats, gui;
+        var camera, scene, renderer,controls;
+        var geometry;
+        
+        var render = function() {
+            renderer.render( scene, camera );
+        }
+        
+        var resize = function() {
+            var w = $("#webgl_3d").width()-30;
+            var h = w*6/8;
+            camera.updateProjectionMatrix();
+            renderer.setSize( w, h );
+            render();
+        }
+        
+        
+        //生成坐标系的箭头
+        var generateArrow = function(l,m) {
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(l-5, -3, 0));   
+                g.vertices.push(new THREE.Vector3(l, 0, 0));
+                g.vertices.push(new THREE.Vector3(l-5, 3, 0));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(l-5, 0, -3));  
+                g.vertices.push(new THREE.Vector3(l, 0, 0));
+                g.vertices.push(new THREE.Vector3(l-5, 0, 3));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(0, l-5, -3));       
+                g.vertices.push(new THREE.Vector3(0, l, 0));
+                g.vertices.push(new THREE.Vector3(0, l-5, 3));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();    
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(-3, l-5, 0)); 
+                g.vertices.push(new THREE.Vector3(0, l, 0));
+                g.vertices.push(new THREE.Vector3(3, l-5, 0));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(-3, 0, l-5)); 
+                g.vertices.push(new THREE.Vector3(0, 0, l));
+                g.vertices.push(new THREE.Vector3(3, 0, l-5));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+            (function(){
+                var g = new THREE.Geometry();
+                g.vertices.push(new THREE.Vector3(0, 3, l-5)); 
+                g.vertices.push(new THREE.Vector3(0, 0, l));
+                g.vertices.push(new THREE.Vector3(0, -3, l-5));        
+                var c = new THREE.Line(g, m);
+                scene.add(c);
+            })();
+
+            
+        }
+        var initEnv = function() {
+            var w = $("#webgl_3d").width()-30;
+            var h = w*6/8;
+            //定义场景、摄像机、渲染器
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera( 45, 1, 0.1, 1500 );
+            camera.position.set(0, 0, 500);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize( w, h );
+            document.getElementById("webgl_3d").appendChild( renderer.domElement );
+
+            controls = new THREE.OrbitControls( camera, renderer.domElement );
+            controls.addEventListener( 'change', render ); 
+
+
+            //监听窗口拉伸
+            $(window).resize(resize);
+            
+            //绘制三维坐标系
+            var cood_length = 130;
+            var g_x = new THREE.Geometry();
+            g_x.vertices.push(new THREE.Vector3(cood_length, 0, 0));
+            g_x.vertices.push(new THREE.Vector3(0, 0, 0));
+            var g_y = new THREE.Geometry();
+            g_y.vertices.push(new THREE.Vector3(0, cood_length, 0));
+            g_y.vertices.push(new THREE.Vector3(0, 0, 0));
+            var g_z = new THREE.Geometry();
+            g_z.vertices.push(new THREE.Vector3(0, 0, cood_length));
+            g_z.vertices.push(new THREE.Vector3(0, 0, 0));
+            
+            
+
+            //不同颜色线的材质
+            var white_line = new THREE.LineBasicMaterial({ color: 0xffffff ,linewidth:4});
+            var red_line = new THREE.LineBasicMaterial({ color: 0xff0000 ,linewidth:4});
+            var green_line = new THREE.LineBasicMaterial({ color: 0x00ff00 ,linewidth:4});
+            var blue_line = new THREE.LineBasicMaterial({ color: 0x0000ff ,linewidth:4});
+            
+            var cood_x = new THREE.Line(g_x, white_line);
+            var cood_y = new THREE.Line(g_y, white_line);
+            var cood_z = new THREE.Line(g_z, white_line);
+            
+            scene.add(cood_x);
+            scene.add(cood_y);
+            scene.add(cood_z);
+            generateArrow(cood_length,white_line);
+        }
+        var init = function() {
+            
+            
+     
+            
+            //图形为三棱柱+正方体
+            //cylinder三棱柱
+            var c_width = 60, //三棱柱底面边长
+                c_height = 80; //三棱柱高
+            var c_d = c_width/Math.sqrt(3);    
+            var c_g = new THREE.CylinderGeometry( c_d, c_d, c_height, 3 );
+            var c_eg = new THREE.EdgesGeometry(c_g);
+            var c_m = new THREE.LineBasicMaterial( {color: 0xff0000 ,linewidth:4} );
+            var cylinder_wireframe = new THREE.LineSegments(c_eg,c_m);
+            cylinder_wireframe.position.set(c_width/2,c_height/2,c_d/2);
+        
+            scene.add(cylinder_wireframe);
+     
+            var b_line = 40;
+            var b_g = new THREE.BoxGeometry(b_line,b_line,b_line);
+            var b_eg = new THREE.EdgesGeometry(b_g);
+            var b_m = new THREE.LineBasicMaterial( {color: 0x00ff00 ,linewidth:4} );   
+            var box_wireframe = new THREE.LineSegments(b_eg, b_m);
+            
+            box_wireframe.position.set(c_width/2,c_height+b_line/2,c_d/2);
+            scene.add(box_wireframe);
+                
+            global.update1 = function(){
+
+                scene.remove(cylinder_wireframe);
+                scene.remove(box_wireframe);
+                
+                c_width = Number(global.cl.val()); //三棱柱底面边长
+                c_height = Number(global.ch.val()); //三棱柱高
+                c_d = c_width/Math.sqrt(3);    
+                c_g = new THREE.CylinderGeometry( c_d, c_d, c_height, 3 );
+                c_eg = new THREE.EdgesGeometry(c_g);
+                c_m = new THREE.LineBasicMaterial( {color: 0xff0000 ,linewidth:4} );
+                cylinder_wireframe = new THREE.LineSegments(c_eg,c_m);
+                cylinder_wireframe.position.set(c_width/2,c_height/2,c_d/2);
+
+                scene.add(cylinder_wireframe);
+
+                b_line = Number(global.bl.val());
+                b_g = new THREE.BoxGeometry(b_line,b_line,b_line);
+                b_eg = new THREE.EdgesGeometry(b_g);
+                b_m = new THREE.LineBasicMaterial( {color: 0x00ff00 ,linewidth:4} );   
+                box_wireframe = new THREE.LineSegments(b_eg, b_m);
+
+                box_wireframe.position.set(c_width/2,c_height+b_line/2,c_d/2);
+                scene.add(box_wireframe);
+                
+                render();
+            }
+        }
+        initEnv();
+        init();
+        render();
+        
+    });
+    
+    
+    
+    $(function(){      
+        var container, stats, gui;
+        var camera, scene, renderer,controls;
+        var geometry;
+        
+        var render = function() {
+            renderer.render( scene, camera );
+        }
+        
+        var resize = function() {
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            camera.updateProjectionMatrix();
+            renderer.setSize( w, h );
+            render();
+        }
+        
+        
+        var transform = function(points,tran) {
+            //console.log(points);
+            var newpoints = [];
+            for (var i=0;i<points.length;i++) {
+                var tx = points[i].x,
+                    ty = points[i].y,
+                    tz = points[i].z;
+                
+                var np = new THREE.Vector3();
+                np.x = tx * tran[0][0] + ty* tran[1][0] + tz * tran[2][0]+ tran[3][0];
+                np.y = tx * tran[0][1] + ty* tran[1][1] + tz * tran[2][1]+ tran[3][1];
+                np.z = tx * tran[0][2] + ty* tran[1][2] + tz * tran[2][2]+ tran[3][2];
+                
+                newpoints.push(np);
+            }
+            return newpoints;
+        }
+        var initEnv = function() {
+            
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            
+            
+            //定义场景、摄像机、渲染器
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(w/-2,w/2,h/-2,h/2,1,1500);
+            camera.position.set(0, -300, 0);
+            camera.lookAt(new THREE.Vector3(0, 1, 0));
+
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize( w, h );
+            document.getElementById("webgl_2d").appendChild( renderer.domElement );
+
+            //监听窗口拉伸
+            $(window).resize(resize);
+
+            
+        }
+        var init = function(cc_l,cc_h,cb_l) {
+            
+            var w = $("#webgl_2d").width()-30;
+            var h = w*6/8;
+            
+            //绘制横纵分割线
+            var cood_length = 130;
+            g_h = new THREE.Geometry();
+            g_h.vertices.push(new THREE.Vector3(0, 0, -h/2));
+            g_h.vertices.push(new THREE.Vector3(0, 0, h/2));
+            g_v = new THREE.Geometry();
+            g_v.vertices.push(new THREE.Vector3(-w/2, 0, 0));
+            g_v.vertices.push(new THREE.Vector3(w/2, 0, 0));
+            
+
+            //不同颜色线的材质
+            var white_line = new THREE.LineBasicMaterial({ color: 0xffffff ,linewidth:4});
+            var red_line = new THREE.LineBasicMaterial({ color: 0xff0000 ,linewidth:4});
+            var green_line = new THREE.LineBasicMaterial({ color: 0x00ff00 ,linewidth:4});
+            var blue_line = new THREE.LineBasicMaterial({ color: 0x0000ff ,linewidth:4});
+            
+            var cood_h = new THREE.Line(g_h, white_line);
+            var cood_v = new THREE.Line(g_v, white_line);
+            
+            scene.add(cood_h);
+            scene.add(cood_v);
+
+            //定义三棱柱和正方体顶点
+            function getCylinder(c_l,c_h) {
+                var arr = [];
+                arr.push(new THREE.Vector3(0,0,0));
+                arr.push(new THREE.Vector3(c_l,0,0));
+                arr.push(new THREE.Vector3(c_l/2,0,c_l*Math.sqrt(3)/2));
+                arr.push(new THREE.Vector3(0,c_h,0));
+                arr.push(new THREE.Vector3(c_l,c_h,0));
+                arr.push(new THREE.Vector3(c_l/2,c_h,c_l*Math.sqrt(3)/2));
+               
+                //123 底面 456 顶面
+                return arr;
+            }
+            function getBox(c_l,c_h,b_l) {
+                var arr = [];
+                var t = c_l/(2*Math.sqrt(3));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h+b_l,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h+b_l,t - b_l/2));
+                arr.push(new THREE.Vector3(c_l/2+b_l/2,c_h+b_l,t + b_l/2));
+                arr.push(new THREE.Vector3(c_l/2-b_l/2,c_h+b_l,t + b_l/2));
+               
+                //1234 底面 4567 顶面
+                return arr;
+            }
+            //主视图
+            var XOZ = [
+                [1,0,0,0],
+                [0,0,0,0],
+                [0,0,1,0],
+                [0,0,0,1]
+            ];
+            //俯视图
+            var XOY = [
+                [1,0,0,0],
+                [0,0,-1,0],
+                [0,0,0,0],
+                [0,0,-h/10,1]
+            ];
+            //侧视图
+            var YOZ = [ 
+                [0,0,0,0],
+                [-1,0,0,0],
+                [0,0,1,0],
+                [-w/10,0,0,1]
+            ];
+            //正轴测图
+            var ISO = [ 
+                [0.707,0,-0.408,0],
+                [-0.707,0,-0.408,0],
+                [0,0,0.816,0],
+                [-w/10,0,-h/10,1]
+            ];
+            
+            var carr = getCylinder(cc_l,cc_h);
+            var carr_xoy = transform(carr,XOY);
+            var carr_xoz = transform(carr,XOZ);
+            var carr_yoz = transform(carr,YOZ);
+            var carr_iso = transform(carr,ISO);
+            
+            var barr = getBox(cc_l,cc_h,cb_l);
+            var barr_xoy = transform(barr,XOY);
+            var barr_xoz = transform(barr,XOZ);
+            var barr_yoz = transform(barr,YOZ);
+            var barr_iso = transform(barr,ISO);
+            
+            //XOY
+            function drawCylinderTrans(carrtrans) {
+                //console.log(carrtrans);
+                //三棱柱底边
+                xoy_u1 = new THREE.Geometry();
+                xoy_u1.vertices.push(carrtrans[0]);
+                xoy_u1.vertices.push(carrtrans[1]);
+                xoy_u1.vertices.push(carrtrans[2]);
+                xoy_u1.vertices.push(carrtrans[0]);  
+                scene.add(new THREE.Line(xoy_u1,red_line));
+                
+                xoy_u2 = new THREE.Geometry();
+                xoy_u2.vertices.push(carrtrans[3]);
+                xoy_u2.vertices.push(carrtrans[4]);
+                xoy_u2.vertices.push(carrtrans[5]);
+                xoy_u2.vertices.push(carrtrans[3]);  
+                scene.add(new THREE.Line(xoy_u2,red_line));
+                
+                //三棱柱棱
+                xoy_l1 = new THREE.Geometry();
+                xoy_l1.vertices.push(carrtrans[0]);
+                xoy_l1.vertices.push(carrtrans[3]);
+                scene.add(new THREE.Line(xoy_l1,red_line));
+                
+                xoy_l2 = new THREE.Geometry();
+                xoy_l2.vertices.push(carrtrans[1]);
+                xoy_l2.vertices.push(carrtrans[4]);
+                scene.add(new THREE.Line(xoy_l2,red_line));
+                
+                xoy_l3 = new THREE.Geometry();
+                xoy_l3.vertices.push(carrtrans[2]);
+                xoy_l3.vertices.push(carrtrans[5]);
+                scene.add(new THREE.Line(xoy_l3,red_line));
+                
+            }
+            
+            function drawBoxTrans(carrtrans) {
+                //正方体底边
+                xoy_u1 = new THREE.Geometry();
+                xoy_u1.vertices.push(carrtrans[0]);
+                xoy_u1.vertices.push(carrtrans[1]);
+                xoy_u1.vertices.push(carrtrans[2]);
+                xoy_u1.vertices.push(carrtrans[3]);
+                xoy_u1.vertices.push(carrtrans[0]);  
+                scene.add(new THREE.Line(xoy_u1,green_line));
+                
+                xoy_u2 = new THREE.Geometry();
+                xoy_u2.vertices.push(carrtrans[4]);
+                xoy_u2.vertices.push(carrtrans[5]);
+                xoy_u2.vertices.push(carrtrans[6]);
+                xoy_u2.vertices.push(carrtrans[7]);
+                xoy_u2.vertices.push(carrtrans[4]);  
+                scene.add(new THREE.Line(xoy_u2,green_line));
+                
+                //正方体棱
+                xoy_l1 = new THREE.Geometry();
+                xoy_l1.vertices.push(carrtrans[0]);
+                xoy_l1.vertices.push(carrtrans[4]);
+                scene.add(new THREE.Line(xoy_l1,green_line));
+                
+                xoy_l2 = new THREE.Geometry();
+                xoy_l2.vertices.push(carrtrans[1]);
+                xoy_l2.vertices.push(carrtrans[5]);
+                scene.add(new THREE.Line(xoy_l2,green_line));
+                
+                xoy_l3 = new THREE.Geometry();
+                xoy_l3.vertices.push(carrtrans[2]);
+                xoy_l3.vertices.push(carrtrans[6]);
+                scene.add(new THREE.Line(xoy_l3,green_line));
+                
+                xoy_l4 = new THREE.Geometry();
+                xoy_l4.vertices.push(carrtrans[3]);
+                xoy_l4.vertices.push(carrtrans[7]);
+                scene.add(new THREE.Line(xoy_l4,green_line));
+                
+            }
+            
+            drawCylinderTrans(carr_xoy);
+            drawCylinderTrans(carr_xoz);
+            drawCylinderTrans(carr_yoz);
+            drawCylinderTrans(carr_iso);
+            drawBoxTrans(barr_xoy);
+            drawBoxTrans(barr_xoz);
+            drawBoxTrans(barr_yoz);
+            drawBoxTrans(barr_iso);
+                
+        }
+        initEnv();
+        init(60,80,40);
+        render();
+        
+        global.update2 = function() {
+            while(scene.children.length>0) {
+                scene.remove(scene.children[0]);
+            }
+            init(Number(global.cl.val()),Number(global.ch.val()),Number(global.bl.val()));
+            render();
+        }
+        
+    });
+  
+    
+</script>
+</body>
+
+</html>
